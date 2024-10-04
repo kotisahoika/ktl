@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinki 県府庁タイムアタックラリー</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #2c3e50; /* ダークな背景色 */
+            color: #ecf0f1; /* 明るいテキスト色 */
+            padding: 20px;
+        }
+        
+        select, button {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+        
+        button {
+            background-color: #2980b9; /* ボタンの背景色 */
+            color: #ecf0f1; /* ボタンのテキスト色 */
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #3498db; /* ホバー時の色 */
+        }
+
+        #message {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kinki 県府庁タイムアタックラリー</h1>
+    <label for="teamSelect">チームを選択:</label>
+    <select id="teamSelect">
+        <option value="チームA">チームA</option>
+        <option value="チームB">チームB</option>
+    </select>
+    <button id="checkInButton">チェックイン</button>
+    <div id="message"></div>
+
+    <script>
+        const checkInButton = document.getElementById('checkInButton');
+        const messageDisplay = document.getElementById('message');
+        const teamSelect = document.getElementById('teamSelect');
+
+        // 近畿地方の県・府庁の座標
+        const locations = {
+            "兵庫県庁": { lat: 34.6863, lng: 135.1830 },
+            "大阪府庁": { lat: 34.6864, lng: 135.5259 },
+            "京都府庁": { lat: 35.0116, lng: 135.7681 },
+            "奈良県庁": { lat: 34.6851, lng: 135.8303 },
+            "和歌山県庁": { lat: 34.2260, lng: 135.1675 },
+            "三重県庁": { lat: 34.7308, lng: 136.5080 },
+            "滋賀県庁": { lat: 35.0044, lng: 135.8680 }
+        };
+
+        // LINE Notifyの設定
+        const LINE_NOTIFY_TOKEN = 'ELzCsKFE49loAcUaIIfSIOaZZPgDp45Hsn0JU13vslM'; // LINE Notifyのトークンを設定
+
+        checkInButton.addEventListener('click', () => {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+                let checkedIn = false;
+
+                for (const [locationName, coords] of Object.entries(locations)) {
+                    const distance = getDistance(userLat, userLng, coords.lat, coords.lng);
+                    if (distance <= 0.1) { // 半径100mを0.1kmとして計算
+                        sendLineNotify(`${teamSelect.value}が${locationName}にチェックインしました`);
+                        messageDisplay.textContent = `${teamSelect.value}が${locationName}にチェックインしました`;
+                        checkedIn = true;
+                        break;
+                    }
+                }
+
+                if (!checkedIn) {
+                    messageDisplay.textContent = 'チェックインできる位置ではありません。';
+                }
+            }, (error) => {
+                messageDisplay.textContent = '位置情報の取得に失敗しました。';
+                console.error(error);
+            });
+        });
+
+        // 緯度・経度の距離を計算する関数
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // 地球の半径 (km)
+            const dLat = degreesToRadians(lat2 - lat1);
+            const dLon = degreesToRadians(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(degreesToRadians(lat1)) * Math.cos(degreesToRadians(lat2)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // 距離を返す (km)
+        }
+
+        // 度をラジアンに変換する関数
+        function degreesToRadians(degrees) {
+            return degrees * (Math.PI / 180);
+        }
+
+        // LINE Notifyにメッセージを送信する関数
+        function sendLineNotify(message) {
+            fetch('https://notify-api.line.me/api/notify', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${LINE_NOTIFY_TOKEN}`,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `message=${encodeURIComponent(message)}`,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error('LINE Notify error:', response);
+                }
+            })
+            .catch(error => console.error('Fetch error:', error));
+        }
+    </script>
+</body>
+</html>
